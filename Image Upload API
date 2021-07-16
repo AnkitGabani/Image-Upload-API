@@ -1,0 +1,119 @@
+****************************** ****************************** ******************************
+
+
+
+
+    func myImageUploadRequest(imageToUpload: UIImage, imgKey: String) {
+        
+        let myUrl = NSURL(string: BASE_URL + CRETAE_LIST_ITEM );
+        let request = NSMutableURLRequest(url:myUrl! as URL);
+        request.httpMethod = "POST";
+        
+        if appDelegate.isGuestLogin == false
+        {
+            request.addValue("application/json", forHTTPHeaderField: "Accept")
+            request.addValue("Bearer \(appDelegate.dicLoginUserDetails.data.accessToken ?? "")", forHTTPHeaderField: "Authorization")
+        }
+        else
+        {
+            request.addValue("application/json", forHTTPHeaderField: "Accept")
+        }
+        
+        
+        let param =  ["title": self.txtTitle.text!,"description": self.txtDes.text!,"brand": self.txtBrand.text!,"bid_price": "250.00","min_bid_price": "20.00","category_id": "5","currency_id": "16","duration_id":"20","attribute_field_id": "2,4,9","offer_start":"2021-07-17 09:27:09","shipping_charge": "[{\"delivery_area_id\": \"1\",\"price\": \"50\",\"isSelected\":true},{\"delivery_area_id\": \"2\",\"price\": \"40\",\"isSelected\":true}]"]
+        
+        print(param)
+        
+        let boundary = generateBoundaryString()
+        request.addValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        
+        
+        let imageData = imageToUpload.jpegData(compressionQuality: 0.4)
+        if imageData == nil  {
+            return
+        }
+        
+        request.httpBody = createBodyWithParameters(parameters: param, filePathKey: imgKey, imageDataKey: imageData! as NSData, boundary: boundary, imgKey: imgKey) as Data
+        
+        let task = URLSession.shared.dataTask(with: request as URLRequest) {
+            data, response, error in
+            
+            APIClient.sharedInstance.hideIndicator()
+            
+            if error != nil {
+                print("error=\(error!)")
+                return
+            }
+            
+            // print reponse body
+            let responseString = NSString(data: data!, encoding: String.Encoding.utf8.rawValue)
+            print("response data = \(responseString!)")
+            
+            do{
+                
+                if let json = try JSONSerialization.jsonObject(with: data!, options: []) as? [String: Any] {
+                    // try to read out a string array
+                    
+                }
+                
+            }catch{
+                
+            }
+            
+            
+        }
+        
+        task.resume()
+    }
+    
+    ****************************** ****************************** ******************************
+func createBodyWithParameters(parameters: [String: String]?, filePathKey: String?, imageDataKey: NSData, boundary: String, imgKey: String) -> NSData {
+        let body = NSMutableData();
+        
+        if parameters != nil {
+            for (key, value) in parameters! {
+                body.appendString(string: "--\(boundary)\r\n")
+                body.appendString(string: "Content-Disposition: form-data; name=\"\(key)\"\r\n\r\n")
+                body.appendString(string: "\(value)\r\n")
+            }
+        }
+        
+        let filename = "\(imgKey).jpg"
+        let mimetype = "image/jpg"
+        
+        body.appendString(string: "--\(boundary)\r\n")
+        body.appendString(string: "Content-Disposition: form-data; name=\"\(filePathKey!)\"; filename=\"\(filename)\"\r\n")
+        body.appendString(string: "Content-Type: \(mimetype)\r\n\r\n")
+        body.append(imageDataKey as Data)
+        body.appendString(string: "\r\n")
+        body.appendString(string: "--\(boundary)--\r\n")
+        
+        return body
+    }
+    
+    func generateBoundaryString() -> String {
+        return "Boundary-\(NSUUID().uuidString)"
+    }
+    
+    ****************************** ****************************** ******************************
+
+extension NSMutableData {
+    func appendString(string: String) {
+        let data = string.data(using: String.Encoding.utf8, allowLossyConversion: true)
+        append(data!)
+    }
+}
+
+extension UIImage {
+    func fixOrientation() -> UIImage? {
+        if self.imageOrientation == UIImage.Orientation.up {
+            return self
+        }
+
+        UIGraphicsBeginImageContext(self.size)
+        self.draw(in: CGRect(origin: .zero, size: self.size))
+        let normalizedImage = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        return normalizedImage
+    }
+}
