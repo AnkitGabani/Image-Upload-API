@@ -117,3 +117,80 @@ extension UIImage {
         return normalizedImage
     }
 }
+
+ ****************************** ****************************** ******************************
+Uploading multiple images with other parameters in Swift
+
+
+https://stackoverflow.com/questions/35052469/uploading-multiple-images-with-other-parameters-in-swift
+
+
+
+
+
+func createBodyWithParameters(parameters: NSMutableDictionary?,boundary: String) -> NSData {
+    let body = NSMutableData()
+
+    if parameters != nil {
+        for (key, value) in parameters! {
+
+            if(value is String || value is NSString){
+                body.appendString("--\(boundary)\r\n")
+                body.appendString("Content-Disposition: form-data; name=\"\(key)\"\r\n\r\n")
+                body.appendString("\(value)\r\n")
+            }
+            else if(value is [UIImage]){
+                var i = 0;
+                for image in value as! [UIImage]{
+                    let filename = "image\(i).jpg"
+                    let data = UIImageJPEGRepresentation(image,1);
+                    let mimetype = mimeTypeForPath(filename)
+
+                    body.appendString("--\(boundary)\r\n")
+                    body.appendString("Content-Disposition: form-data; name=\"\(key)\"; filename=\"\(filename)\"\r\n")
+                    body.appendString("Content-Type: \(mimetype)\r\n\r\n")
+                    body.appendData(data!)
+                    body.appendString("\r\n")
+                    i++;
+                }
+
+
+            }
+        }
+    }
+    body.appendString("--\(boundary)--\r\n")
+    //        NSLog("data %@",NSString(data: body, encoding: NSUTF8StringEncoding)!);
+    return body
+}
+
+func generateBoundaryString() -> String {
+    return "Boundary-\(NSUUID().UUIDString)"
+
+}
+
+func mimeTypeForPath(path: String) -> String {
+    let pathExtension = path.pathExtension
+    var stringMimeType = "application/octet-stream";
+    if let uti = UTTypeCreatePreferredIdentifierForTag(kUTTagClassFilenameExtension, pathExtension!, nil)?.takeRetainedValue() {
+        if let mimetype = UTTypeCopyPreferredTagWithClass(uti, kUTTagClassMIMEType)?.takeRetainedValue() {
+            stringMimeType = mimetype as NSString as String
+        }
+    }
+    return stringMimeType;
+}
+
+
+
+func createRequest (param : NSMutableDictionary , strURL : String) -> NSURLRequest {
+
+    let boundary = generateBoundaryString()
+
+    let url = NSURL(string: strURL)
+    let request = NSMutableURLRequest(URL: url!)
+
+    request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+    request.HTTPMethod = "POST"
+    request.HTTPBody = createBodyWithParameters(param, boundary: boundary)
+
+    return request
+}
